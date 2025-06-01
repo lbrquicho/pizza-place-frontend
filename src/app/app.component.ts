@@ -10,12 +10,14 @@ import { MatPaginator, MatPaginatorModule, PageEvent } from '@angular/material/p
 import { MatInputModule } from '@angular/material/input';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-
+import { NgChartsModule } from 'ng2-charts';
+import { ChartData } from 'chart.js';
+import {MatProgressSpinnerModule} from '@angular/material/progress-spinner';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, CommonModule, FormsModule ],
+  imports: [MatTableModule, MatSortModule, MatPaginatorModule, MatInputModule, CommonModule, FormsModule, NgChartsModule, MatProgressSpinnerModule ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -45,6 +47,18 @@ export class AppComponent implements OnInit {
 
   dataSource = new MatTableDataSource<any>([]);
 
+  pieChartLabels: string[] = [];
+  pieChartType: 'pie' = 'pie';
+  pieChartData: ChartData<'pie', number[], string> = {
+    labels: [],
+    datasets: [
+      {
+        data: [],
+        backgroundColor: []
+      }
+    ]
+  };
+
   page = 0
   pageSize = 10
   order: 'asc' | 'desc' = 'asc'
@@ -68,13 +82,35 @@ export class AppComponent implements OnInit {
     this.store.pipe(select(selectOrdersData)).subscribe((data: any[]) => {
       this.dataSource.data = data;
 
-       console.log('Orders Data:', this.dataSource.data);
+      const categoryCountMap = new Map<string, number>();
+
+      data.forEach(item => {
+        const category = item.category ?? 'Unknown';
+        categoryCountMap.set(category, (categoryCountMap.get(category) || 0) + 1);
+      });
+
+      const labels = Array.from(categoryCountMap.keys());
+      const counts = Array.from(categoryCountMap.values());
+      const backgroundColors = this.generateRandomColors(labels.length);
+
+      this.pieChartLabels = labels;
+      this.pieChartData = {
+        labels,
+        datasets: [
+          {
+            data: counts,
+            backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0']
+          }
+        ]
+      };
+
+      //console.log('Orders Data:', this.dataSource.data);
     });
 
     this.store.pipe(select(selectOrdersTotalCount)).subscribe((total: number) => {
       this.totalCount = total || 0;
 
-      console.log("Total Orders:", this.totalCount);
+      //console.log("Total Orders:", this.totalCount);
     });
   }
 
@@ -114,13 +150,28 @@ export class AppComponent implements OnInit {
     this.loadOrders();
   }
 
-  updateColumnsToDisplay(index: number) {
-    if (this.columnItems.filter(item => item.isChecked).length < 1) {
-      this.columnItems[index].isChecked = true;
+  // updateColumnsToDisplay(index: number) {
+  //   if (this.columnItems.filter(item => item.isChecked).length < 1) {
+  //     this.columnItems[index].isChecked = true;
+  //   }
+  //   else {
+  //     this.columnSelect = this.columnItems.filter(item => item.isChecked).map(item => item.headRef);
+  //   }
+  // }
+
+  private generateRandomColors(count: number): string[] {
+    const usedColors = new Set<string>();
+    const colors: string[] = [];
+
+    while (colors.length < count) {
+      const color = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+      if (!usedColors.has(color)) {
+        usedColors.add(color);
+        colors.push(color);
+      }
     }
-    else {
-      this.columnSelect = this.columnItems.filter(item => item.isChecked).map(item => item.headRef);
-    }
+
+    return colors;
   }
 
 }
